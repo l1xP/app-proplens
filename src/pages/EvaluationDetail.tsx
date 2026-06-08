@@ -522,7 +522,7 @@ export function EvaluationDetail({ evaluationId, onNavigate, onSignOut, mode }: 
                     const exitPSF = purchasePSF * Math.pow(1 + growthRate, year)
                     const sellingPrice = exitPSF * evaluation.size_sqft
                     const outstandingLoan = results.loanAmount * (1 - (year / evaluation.loan_tenure_years))
-                    const sellingFees = evaluation.legal_conveyance_fee + sellingPrice * 0.02
+                    const sellingFees = evaluation.selling_legal_conveyance_fee + sellingPrice * 0.02
                     const netCapitalGain = sellingPrice - outstandingLoan - sellingFees - results.initialInvestmentWithoutGST
                     const totalPocketMoney = results.monthlyPocketMoney * year * 12
                     const totalProfit = netCapitalGain + totalPocketMoney

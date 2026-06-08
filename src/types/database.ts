@@ -29,6 +29,7 @@ export interface Database {
           downpayment_percent: number
           corp_sect_fee: number
           legal_conveyance_fee: number
+          selling_legal_conveyance_fee: number
           legal_jv_fee: number
           bank_facilities_fee: number
           insurance: number
@@ -70,6 +71,7 @@ export interface Database {
           downpayment_percent?: number
           corp_sect_fee?: number
           legal_conveyance_fee?: number
+          selling_legal_conveyance_fee?: number
           legal_jv_fee?: number
           bank_facilities_fee?: number
           insurance?: number
@@ -111,6 +113,7 @@ export interface Database {
           downpayment_percent?: number
           corp_sect_fee?: number
           legal_conveyance_fee?: number
+          selling_legal_conveyance_fee?: number
           legal_jv_fee?: number
           bank_facilities_fee?: number
           insurance?: number

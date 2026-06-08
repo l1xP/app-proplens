@@ -246,9 +246,9 @@ function calculateScenario(
     exitYear
   )
 
-  const sellingFees = evaluation.legal_conveyance_fee + sellingPrice * AGENT_SELLING_COMMISSION_RATE
+  const sellingFees = evaluation.selling_legal_conveyance_fee + sellingPrice * AGENT_SELLING_COMMISSION_RATE
   const agentCommission = sellingPrice * AGENT_SELLING_COMMISSION_RATE
-  const legalConveyanceFee = evaluation.legal_conveyance_fee
+  const legalConveyanceFee = evaluation.selling_legal_conveyance_fee
 
   // Net Capital Gain calculation
   const netCapitalGain =
@@ -339,8 +339,8 @@ export function calculateEvaluation(evaluation: Evaluation): CalculationResults 
   const initialInvestment = downpayment + totalCosts - gstRefundable
   const initialInvestmentWithoutGST = downpayment + totalCostsWithoutGST
 
-  // CI's share of the initial investment (excluding GST)
-  const ciInvestment = initialInvestmentWithoutGST * evaluation.ci_percent
+  // CI provides all the upfront cash (downpayment + costs), excluding the GST portion
+  const ciInvestment = initialInvestmentWithoutGST
 
   // Loan Amount
   const loanAmount = evaluation.purchase_price * (1 - evaluation.downpayment_percent)

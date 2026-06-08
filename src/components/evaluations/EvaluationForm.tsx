@@ -45,6 +45,7 @@ const DEFAULT_VALUES: Partial<EvaluationInsert> = {
   downpayment_percent: 0.20,
   corp_sect_fee: 0,
   legal_conveyance_fee: 1500,
+  selling_legal_conveyance_fee: 1500,
   legal_jv_fee: 0,
   bank_facilities_fee: 3600,
   insurance: 3500,
@@ -482,13 +483,29 @@ export function EvaluationForm({ evaluation, mode, onSave, onCancel }: Evaluatio
 
               <div>
                 <label htmlFor="legal_conveyance_fee" className="label">
-                  Legal Conveyance Fee
+                  Legal Conveyance Fee (Purchase)
                 </label>
                 <input
                   id="legal_conveyance_fee"
                   type="number"
                   value={formData.legal_conveyance_fee || ''}
                   onChange={(e) => updateField('legal_conveyance_fee', parseFloat(e.target.value) || 0)}
+                  className="input"
+                  placeholder="1500"
+                  min="0"
+                  step="1"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="selling_legal_conveyance_fee" className="label">
+                  Legal Conveyance Fee (Selling)
+                </label>
+                <input
+                  id="selling_legal_conveyance_fee"
+                  type="number"
+                  value={formData.selling_legal_conveyance_fee || ''}
+                  onChange={(e) => updateField('selling_legal_conveyance_fee', parseFloat(e.target.value) || 0)}
                   className="input"
                   placeholder="1500"
                   min="0"
