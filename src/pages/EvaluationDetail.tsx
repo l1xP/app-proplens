@@ -196,6 +196,10 @@ export function EvaluationDetail({ evaluationId, onNavigate, onSignOut, mode }: 
             <Download className="w-4 h-4" />
             Export PDF
           </button>
+          <button onClick={() => onNavigate('dashboard')} className="btn btn-ghost">
+            <ArrowLeft className="w-4 h-4" />
+            Dashboard
+          </button>
         </div>
       }
     >
