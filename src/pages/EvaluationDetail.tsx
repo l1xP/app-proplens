@@ -411,6 +411,27 @@ export function EvaluationDetail({ evaluationId, onNavigate, onSignOut, mode }: 
                   <td className="text-right font-mono">{formatCurrency(results.scenarios.target.sellingFees)}</td>
                   <td className="text-right font-mono">{formatCurrency(results.scenarios.aggressive.sellingFees)}</td>
                 </tr>
+                <tr className="text-secondary text-sm">
+                  <td className="pl-6">&#8627; Agent commission (2%)</td>
+                  <td className="text-right font-mono">{formatCurrency(results.scenarios.conservative.agentCommission)}</td>
+                  <td className="text-right font-mono">{formatCurrency(results.scenarios.baseline.agentCommission)}</td>
+                  <td className="text-right font-mono">{formatCurrency(results.scenarios.target.agentCommission)}</td>
+                  <td className="text-right font-mono">{formatCurrency(results.scenarios.aggressive.agentCommission)}</td>
+                </tr>
+                <tr className="text-secondary text-sm">
+                  <td className="pl-6">&#8627; Legal conveyance</td>
+                  <td className="text-right font-mono">{formatCurrency(results.scenarios.conservative.legalConveyanceFee)}</td>
+                  <td className="text-right font-mono">{formatCurrency(results.scenarios.baseline.legalConveyanceFee)}</td>
+                  <td className="text-right font-mono">{formatCurrency(results.scenarios.target.legalConveyanceFee)}</td>
+                  <td className="text-right font-mono">{formatCurrency(results.scenarios.aggressive.legalConveyanceFee)}</td>
+                </tr>
+                <tr>
+                  <td className="font-medium">Less Cash Investment (w/o GST)</td>
+                  <td className="text-right font-mono">{formatCurrency(results.ciInvestment)}</td>
+                  <td className="text-right font-mono">{formatCurrency(results.ciInvestment)}</td>
+                  <td className="text-right font-mono">{formatCurrency(results.ciInvestment)}</td>
+                  <td className="text-right font-mono">{formatCurrency(results.ciInvestment)}</td>
+                </tr>
                 <tr>
                   <td className="font-medium">Net Capital Gain</td>
                   <td className="text-right font-mono">{formatCurrency(results.scenarios.conservative.netCapitalGain)}</td>

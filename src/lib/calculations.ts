@@ -13,6 +13,8 @@ interface ScenarioResult {
   sellingPrice: number
   outstandingLoan: number
   sellingFees: number
+  agentCommission: number
+  legalConveyanceFee: number
   netCapitalGain: number
   totalPocketMoney: number
   totalProfit: number
@@ -29,6 +31,7 @@ interface CalculationResults {
   totalCostsWithoutGST: number
   initialInvestment: number
   initialInvestmentWithoutGST: number
+  ciInvestment: number
   loanAmount: number
   monthlyMortgage: number
   monthlyPocketMoney: number
@@ -244,6 +247,8 @@ function calculateScenario(
   )
 
   const sellingFees = evaluation.legal_conveyance_fee + sellingPrice * AGENT_SELLING_COMMISSION_RATE
+  const agentCommission = sellingPrice * AGENT_SELLING_COMMISSION_RATE
+  const legalConveyanceFee = evaluation.legal_conveyance_fee
 
   // Net Capital Gain calculation
   const netCapitalGain =
@@ -277,6 +282,8 @@ function calculateScenario(
     sellingPrice,
     outstandingLoan,
     sellingFees,
+    agentCommission,
+    legalConveyanceFee,
     netCapitalGain,
     totalPocketMoney,
     totalProfit,
@@ -331,6 +338,9 @@ export function calculateEvaluation(evaluation: Evaluation): CalculationResults 
   // Initial Investment (includes GST if not refundable)
   const initialInvestment = downpayment + totalCosts - gstRefundable
   const initialInvestmentWithoutGST = downpayment + totalCostsWithoutGST
+
+  // CI's share of the initial investment (excluding GST)
+  const ciInvestment = initialInvestmentWithoutGST * evaluation.ci_percent
 
   // Loan Amount
   const loanAmount = evaluation.purchase_price * (1 - evaluation.downpayment_percent)
@@ -417,6 +427,7 @@ export function calculateEvaluation(evaluation: Evaluation): CalculationResults 
     totalCostsWithoutGST,
     initialInvestment,
     initialInvestmentWithoutGST,
+    ciInvestment,
     loanAmount,
     monthlyMortgage,
     monthlyPocketMoney,
