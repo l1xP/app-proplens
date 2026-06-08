@@ -335,9 +335,13 @@ export function calculateEvaluation(evaluation: Evaluation): CalculationResults 
   // Downpayment
   const downpayment = evaluation.purchase_price * evaluation.downpayment_percent
 
+  // Backup funds: X months of rental held in reserve
+  const rental = evaluation.rental_expected > 0 ? evaluation.rental_expected : evaluation.rental_current
+  const backupFunds = evaluation.backup_funds_months * rental
+
   // Initial Investment (includes GST if not refundable)
-  const initialInvestment = downpayment + totalCosts - gstRefundable
-  const initialInvestmentWithoutGST = downpayment + totalCostsWithoutGST
+  const initialInvestment = downpayment + totalCosts - gstRefundable + backupFunds
+  const initialInvestmentWithoutGST = downpayment + totalCostsWithoutGST + backupFunds
 
   // CI provides all the upfront cash (downpayment + costs), excluding the GST portion
   const ciInvestment = initialInvestmentWithoutGST
@@ -353,7 +357,6 @@ export function calculateEvaluation(evaluation: Evaluation): CalculationResults 
   )
 
   // Monthly Pocket Money
-  const rental = evaluation.rental_expected > 0 ? evaluation.rental_expected : evaluation.rental_current
   const monthlyPocketMoney = calculateMonthlyPocketMoney(
     rental,
     monthlyMortgage,
