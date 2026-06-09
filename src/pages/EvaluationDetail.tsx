@@ -684,6 +684,15 @@ export function EvaluationDetail({ evaluationId, onNavigate, onSignOut, mode }: 
               <span className="text-secondary">MCST</span>
               <span className="font-mono">{formatCurrency(evaluation.mcst_monthly)}/mo</span>
             </div>
+            <div className="flex justify-between">
+              <span className="text-secondary">Rental Yield</span>
+              <span className="font-mono font-semibold text-accent">
+                {formatPercent(
+                  ((evaluation.rental_expected > 0 ? evaluation.rental_expected : evaluation.rental_current) * 12) /
+                    evaluation.purchase_price
+                )}
+              </span>
+            </div>
           </div>
         </div>
       </div>
