@@ -13,7 +13,11 @@ import {
   ChevronLeft,
   Save,
   Calculator,
-  Info
+  Info,
+  Plus,
+  Trash2,
+  Sparkles,
+  PenLine,
 } from 'lucide-react'
 import { calculateEvaluation, calculateSuggestedLTV, formatCurrency, formatPercent } from '../../lib/calculations'
 
@@ -25,6 +29,11 @@ interface EvaluationFormProps {
 }
 
 type Step = 'property' | 'financial' | 'costs' | 'rental' | 'jv' | 'growth'
+
+interface PsfDataPoint {
+  year: string
+  psf: string
+}
 
 const STEPS: { id: Step; label: string; icon: React.ReactNode }[] = [
   { id: 'property', label: 'Property Details', icon: <Building2 className="w-4 h-4" /> },
@@ -63,11 +72,28 @@ const DEFAULT_VALUES: Partial<EvaluationInsert> = {
   status: 'Draft',
 }
 
+/** Fit a CAGR to a series of (year, psf) data points using least-squares log-linear regression */
+function fitCAGR(points: { year: number; psf: number }[]): number {
+  if (points.length < 2) return 0
+  const n = points.length
+  const sumX = points.reduce((s, p) => s + p.year, 0)
+  const sumY = points.reduce((s, p) => s + Math.log(p.psf), 0)
+  const sumXY = points.reduce((s, p) => s + p.year * Math.log(p.psf), 0)
+  const sumX2 = points.reduce((s, p) => s + p.year * p.year, 0)
+  const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX)
+  return Math.exp(slope) - 1
+}
+
 export function EvaluationForm({ evaluation, mode, onSave, onCancel }: EvaluationFormProps) {
   const { user } = useAuth()
   const [currentStep, setCurrentStep] = useState<Step>('property')
   const [loading, setLoading] = useState(false)
   const [showTooltip, setShowTooltip] = useState<string | null>(null)
+  const [growthMode, setGrowthMode] = useState<'manual' | 'derive'>('manual')
+  const [psfPoints, setPsfPoints] = useState<PsfDataPoint[]>([
+    { year: '', psf: '' },
+    { year: '', psf: '' },
+  ])
 
   const [formData, setFormData] = useState<Partial<EvaluationInsert>>({
     ...DEFAULT_VALUES,
@@ -169,6 +195,45 @@ export function EvaluationForm({ evaluation, mode, onSave, onCancel }: Evaluatio
       updateField('downpayment_percent', 1 - suggestedLTV)
     }
   }, [formData.property_type, formData.lb_profile, mode])
+
+  // Derive growth rates from PSF data points
+  const validPsfPoints = psfPoints
+    .map((p) => ({ year: parseFloat(p.year), psf: parseFloat(p.psf) }))
+    .filter((p) => !isNaN(p.year) && !isNaN(p.psf) && p.psf > 0)
+    .sort((a, b) => a.year - b.year)
+
+  const derivedCAGR = validPsfPoints.length >= 2 ? fitCAGR(validPsfPoints) : null
+  const derivedRates = derivedCAGR !== null
+    ? {
+        conservative: Math.round((derivedCAGR - 0.01) * 1000) / 1000,
+        baseline: Math.round(derivedCAGR * 1000) / 1000,
+        target: Math.round((derivedCAGR + 0.01) * 1000) / 1000,
+        aggressive: Math.round((derivedCAGR + 0.02) * 1000) / 1000,
+      }
+    : null
+
+  const applyDerivedRates = () => {
+    if (!derivedRates) return
+    updateField('conservative_growth', derivedRates.conservative)
+    updateField('baseline_growth', derivedRates.baseline)
+    updateField('target_growth', derivedRates.target)
+    updateField('aggressive_growth', derivedRates.aggressive)
+    setGrowthMode('manual')
+  }
+
+  const addPsfPoint = () => {
+    if (psfPoints.length < 10) {
+      setPsfPoints((prev) => [...prev, { year: '', psf: '' }])
+    }
+  }
+
+  const removePsfPoint = (i: number) => {
+    setPsfPoints((prev) => prev.filter((_, idx) => idx !== i))
+  }
+
+  const updatePsfPoint = (i: number, field: 'year' | 'psf', value: string) => {
+    setPsfPoints((prev) => prev.map((p, idx) => idx === i ? { ...p, [field]: value } : p))
+  }
 
   const renderStep = () => {
     switch (currentStep) {
@@ -810,6 +875,7 @@ export function EvaluationForm({ evaluation, mode, onSave, onCancel }: Evaluatio
       case 'growth':
         return (
           <div className="space-y-6">
+            {/* Plan Exit Year — always visible */}
             <div>
               <label htmlFor="plan_exit_year" className="label">
                 Plan Exit Year <span className="text-error">*</span>
@@ -828,93 +894,248 @@ export function EvaluationForm({ evaluation, mode, onSave, onCancel }: Evaluatio
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="conservative_growth" className="label">
-                  Conservative Growth <span className="text-error">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    id="conservative_growth"
-                    type="number"
-                    value={(formData.conservative_growth || 0) * 100}
-                    onChange={(e) => updateField('conservative_growth', parseFloat(e.target.value) / 100 || 0)}
-                    className="input pr-8"
-                    placeholder="3"
-                    min="-5"
-                    max="20"
-                    step="0.5"
-                    required
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted">%</span>
-                </div>
-              </div>
-
-              <div>
-                <label htmlFor="baseline_growth" className="label">
-                  Baseline Growth <span className="text-error">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    id="baseline_growth"
-                    type="number"
-                    value={(formData.baseline_growth || 0) * 100}
-                    onChange={(e) => updateField('baseline_growth', parseFloat(e.target.value) / 100 || 0)}
-                    className="input pr-8"
-                    placeholder="4"
-                    min="-5"
-                    max="20"
-                    step="0.5"
-                    required
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted">%</span>
-                </div>
-              </div>
+            {/* Mode toggle */}
+            <div className="flex items-center gap-1 p-1 bg-surface-subtle border border-border rounded-lg w-fit">
+              <button
+                type="button"
+                onClick={() => setGrowthMode('manual')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                  growthMode === 'manual'
+                    ? 'bg-surface-elevated shadow-sm text-textPrimary'
+                    : 'text-secondary hover:text-textPrimary'
+                }`}
+              >
+                <PenLine className="w-4 h-4" />
+                Manual
+              </button>
+              <button
+                type="button"
+                onClick={() => setGrowthMode('derive')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                  growthMode === 'derive'
+                    ? 'bg-surface-elevated shadow-sm text-accent'
+                    : 'text-secondary hover:text-textPrimary'
+                }`}
+              >
+                <Sparkles className="w-4 h-4" />
+                Derive from historical PSF
+              </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="target_growth" className="label">
-                  Target Growth <span className="text-error">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    id="target_growth"
-                    type="number"
-                    value={(formData.target_growth || 0) * 100}
-                    onChange={(e) => updateField('target_growth', parseFloat(e.target.value) / 100 || 0)}
-                    className="input pr-8"
-                    placeholder="5"
-                    min="-5"
-                    max="20"
-                    step="0.5"
-                    required
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted">%</span>
-                </div>
-              </div>
+            {growthMode === 'manual' ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="conservative_growth" className="label">
+                      Conservative Growth <span className="text-error">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="conservative_growth"
+                        type="number"
+                        value={(formData.conservative_growth || 0) * 100}
+                        onChange={(e) => updateField('conservative_growth', parseFloat(e.target.value) / 100 || 0)}
+                        className="input pr-8"
+                        placeholder="3"
+                        min="-5"
+                        max="20"
+                        step="0.5"
+                        required
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted">%</span>
+                    </div>
+                  </div>
 
-              <div>
-                <label htmlFor="aggressive_growth" className="label">
-                  Aggressive Growth <span className="text-error">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    id="aggressive_growth"
-                    type="number"
-                    value={(formData.aggressive_growth || 0) * 100}
-                    onChange={(e) => updateField('aggressive_growth', parseFloat(e.target.value) / 100 || 0)}
-                    className="input pr-8"
-                    placeholder="6"
-                    min="-5"
-                    max="20"
-                    step="0.5"
-                    required
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted">%</span>
+                  <div>
+                    <label htmlFor="baseline_growth" className="label">
+                      Baseline Growth <span className="text-error">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="baseline_growth"
+                        type="number"
+                        value={(formData.baseline_growth || 0) * 100}
+                        onChange={(e) => updateField('baseline_growth', parseFloat(e.target.value) / 100 || 0)}
+                        className="input pr-8"
+                        placeholder="4"
+                        min="-5"
+                        max="20"
+                        step="0.5"
+                        required
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted">%</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="target_growth" className="label">
+                      Target Growth <span className="text-error">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="target_growth"
+                        type="number"
+                        value={(formData.target_growth || 0) * 100}
+                        onChange={(e) => updateField('target_growth', parseFloat(e.target.value) / 100 || 0)}
+                        className="input pr-8"
+                        placeholder="5"
+                        min="-5"
+                        max="20"
+                        step="0.5"
+                        required
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted">%</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="aggressive_growth" className="label">
+                      Aggressive Growth <span className="text-error">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="aggressive_growth"
+                        type="number"
+                        value={(formData.aggressive_growth || 0) * 100}
+                        onChange={(e) => updateField('aggressive_growth', parseFloat(e.target.value) / 100 || 0)}
+                        className="input pr-8"
+                        placeholder="6"
+                        min="-5"
+                        max="20"
+                        step="0.5"
+                        required
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted">%</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-5">
+                <div className="bg-accent-subtle border border-accent/20 rounded-lg p-4">
+                  <div className="flex gap-3">
+                    <Sparkles className="w-5 h-5 text-accent flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-accent">Auto-derive growth rates</p>
+                      <p className="text-sm text-secondary mt-1">
+                        Enter historical PSF data points (year + price per sqft). A CAGR is fitted to your data and used as the Baseline rate. Conservative is CAGR&nbsp;−&nbsp;1%, Target is CAGR&nbsp;+&nbsp;1%, Aggressive is CAGR&nbsp;+&nbsp;2%.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* PSF data point table */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm font-medium text-textPrimary">Historical PSF Data Points</p>
+                    <span className="text-xs text-muted">{psfPoints.length}/10 entries</span>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-[1fr_1fr_auto] gap-2 text-xs font-medium text-muted uppercase tracking-wide px-1">
+                      <span>Year (e.g. 2020)</span>
+                      <span>PSF (S$)</span>
+                      <span className="w-8" />
+                    </div>
+                    {psfPoints.map((pt, i) => (
+                      <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center">
+                        <input
+                          type="number"
+                          value={pt.year}
+                          onChange={(e) => updatePsfPoint(i, 'year', e.target.value)}
+                          className="input"
+                          placeholder="e.g. 2020"
+                          step="1"
+                        />
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted text-sm">$</span>
+                          <input
+                            type="number"
+                            value={pt.psf}
+                            onChange={(e) => updatePsfPoint(i, 'psf', e.target.value)}
+                            className="input pl-7"
+                            placeholder="e.g. 550"
+                            min="0"
+                            step="1"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removePsfPoint(i)}
+                          disabled={psfPoints.length <= 2}
+                          className="w-8 h-8 flex items-center justify-center rounded-md text-muted hover:text-error hover:bg-error-subtle transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {psfPoints.length < 10 && (
+                    <button
+                      type="button"
+                      onClick={addPsfPoint}
+                      className="mt-3 flex items-center gap-2 text-sm text-accent hover:text-accent-hover font-medium"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Add data point
+                    </button>
+                  )}
+                </div>
+
+                {/* Live derived rates preview */}
+                {derivedRates ? (
+                  <div className="border border-border rounded-lg overflow-hidden">
+                    <div className="bg-surface-subtle px-4 py-3 border-b border-border">
+                      <p className="text-sm font-semibold text-textPrimary">
+                        Derived Rates
+                        <span className="ml-2 text-xs font-normal text-muted">
+                          based on {validPsfPoints.length} data point{validPsfPoints.length !== 1 ? 's' : ''}
+                        </span>
+                      </p>
+                    </div>
+                    <div className="divide-y divide-border">
+                      {[
+                        { label: 'Conservative', value: derivedRates.conservative, note: 'CAGR − 1%' },
+                        { label: 'Baseline', value: derivedRates.baseline, note: 'CAGR (fitted)' },
+                        { label: 'Target', value: derivedRates.target, note: 'CAGR + 1%' },
+                        { label: 'Aggressive', value: derivedRates.aggressive, note: 'CAGR + 2%' },
+                      ].map(({ label, value, note }) => (
+                        <div key={label} className="flex items-center justify-between px-4 py-3">
+                          <div>
+                            <span className="text-sm font-medium text-textPrimary">{label}</span>
+                            <span className="ml-2 text-xs text-muted">({note})</span>
+                          </div>
+                          <span className={`font-mono font-semibold text-sm ${value >= 0 ? 'text-success' : 'text-error'}`}>
+                            {value >= 0 ? '+' : ''}{(value * 100).toFixed(2)}%
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="px-4 py-3 bg-surface-subtle border-t border-border">
+                      <button
+                        type="button"
+                        onClick={applyDerivedRates}
+                        className="btn btn-primary w-full"
+                      >
+                        <Sparkles className="w-4 h-4" />
+                        Apply these rates
+                      </button>
+                    </div>
+                  </div>
+                ) : validPsfPoints.length === 1 ? (
+                  <p className="text-sm text-muted text-center py-3">
+                    Add at least one more data point to derive growth rates.
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted text-center py-3">
+                    Enter at least 2 valid data points to derive growth rates.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         )
 
@@ -1050,3 +1271,4 @@ export function EvaluationForm({ evaluation, mode, onSave, onCancel }: Evaluatio
     </div>
   )
 }
+
